@@ -1,7 +1,7 @@
 package goodmq
 
 import (
-	"context"
+	"github.com/streadway/amqp"
 	"os"
 	"testing"
 	"time"
@@ -9,7 +9,7 @@ import (
 
 func TestAutoRecover(t *testing.T) {
 	if addr, ok := os.LookupEnv("AMQP_ADDR"); ok {
-		RecoverDelay = 1 * time.Second
+		RecoverDelay = 5 * time.Second
 		connection := NewAmqpConnection(addr)
 		defer connection.Close()
 		consumer, err := connection.NewConsumer()
@@ -21,37 +21,34 @@ func TestAutoRecover(t *testing.T) {
 		consumer.Exchange = "apiServers"
 		consumeChan, ok := consumer.Consume()
 
-		//test dump after 5 sec
+		//test dump after 2 sec
 		go func() {
 			select {
-			case <-time.After(5 * time.Second):
-				connection.conn.Close()
+			case <-time.After(2 * time.Second):
+				connection.notifyClose <- amqp.ErrClosed
 			}
 		}()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		//stop test after 10 sec
-		go func(ctx context.Context) {
-			time.Sleep(10 * time.Second)
-			cancel()
-		}(ctx)
-
-		go func(ctx context.Context) {
-			for range time.Tick(2 * time.Second) {
-				if ok {
-					Info.Println("Heartbeat connect success")
-					for range consumeChan {
-						Info.Printf("Message")
-					}
-					ok = false
-				} else {
-					Warn.Println("Heartbeat connection closed! Recovering...")
-					consumeChan, ok = consumer.Consume()
-				}
+		//test dump after 10 sec
+		go func() {
+			select {
+			case <-time.After(10 * time.Second):
+				connection.notifyClose <- amqp.ErrCommandInvalid
 			}
-		}(ctx)
+		}()
 
-		<-ctx.Done()
+		for range time.Tick(2 * time.Second) {
+			if ok {
+				Info.Println("Heartbeat connect success")
+				for range consumeChan {
+					Info.Printf("Message")
+				}
+				ok = false
+			} else {
+				Warn.Println("Heartbeat connection closed! Recovering...")
+				consumeChan, ok = consumer.Consume()
+			}
+		}
 	} else {
 		t.Error("OS env AMQP_ADDR required")
 	}

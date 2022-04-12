@@ -42,6 +42,7 @@ func (cm *AmqpConsumer) declareQueue() error {
 
 func (cm *AmqpConsumer) Consume() (<-chan amqp.Delivery, bool) {
 	if !cm.hasQue {
+		Info.Printf("Not queue available, declaring %v...\n", cm.QueName)
 		err := cm.declareQueue()
 		if err != nil {
 			return nil, false
