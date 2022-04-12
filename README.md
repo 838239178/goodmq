@@ -1,3 +1,11 @@
+# GoodMQ
+
+A good `streadway/amqp` wrapper. Supporting connection reconnecting and channel recovering.
+
+### Feature
+
+- [ ]  More flexible configuration
+- [ ]  TODO
 
 ## Consumer Example
 
@@ -33,6 +41,7 @@ func ListenHeartbeat() {
 }
 ```
 
+### Logs
 
 ```log
 2022/04/12 18:42:09 Hearbeat connect success
