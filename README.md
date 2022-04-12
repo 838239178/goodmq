@@ -1,5 +1,7 @@
 # GoodMQ
 
+[![GoDoc](https://godoc.org/github.com/838239178/goodmq?status.svg)](http://godoc.org/github.com/838239178/goodmq)
+
 A good `streadway/amqp` wrapper. Supporting connection reconnecting and channel recovering.
 
 ### Feature
@@ -14,7 +16,7 @@ A good `streadway/amqp` wrapper. Supporting connection reconnecting and channel 
 
 ```go
 func ListenHeartbeat() {
-	mq := rabbitmq.NewAmqpConnection(config.AmqpAddress)
+	mq := goodmq.NewAmqpConnection(config.AmqpAddress)
 	consumer, err := mq.NewConsumer()
 	if err != nil {
 		panic(err)
