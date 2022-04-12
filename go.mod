@@ -1,4 +1,4 @@
-module goodmq
+module github.com/838239178/goodmq
 
 go 1.18
 
