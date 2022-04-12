@@ -4,9 +4,16 @@
 
 A good `streadway/amqp` wrapper. Supporting connection reconnecting and channel recovering.
 
+Thread Safe：Recommend one thread one channel. One connection manage lots of channel.
+
 ### Feature
 
+Need your issue and pull request to make this project more stable and stronger
+
+- [x] Auto recovering
 - [ ]  More flexible configuration
+- [ ]  Auto restart consume
+- [ ]  Connection/Channel Pool
 - [ ]  TODO
 
 ## Consumer Example
