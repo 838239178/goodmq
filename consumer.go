@@ -1,8 +1,6 @@
 package goodmq
 
 import (
-	"log"
-
 	"github.com/streadway/amqp"
 )
 
@@ -16,21 +14,21 @@ type AmqpConsumer struct {
 	QueName      string //QueName 默认为空，自动生成唯一队列并赋值
 	AutoAck      bool   //AutoAck 默认为true
 	Durable      bool   //Durable 默认为false
-	DeleteUnuse  bool   //DeleteUnuse 默认false
+	DeleteUnused bool   //DeleteUnused 默认false
 }
 
 func (cm *AmqpConsumer) declareQueue() error {
 	if cm.Exchange == "" {
-		panic("Please set AmqpConsumer.Exchange!")
+		Error.Panicln("Please set AmqpConsumer.Exchange!")
 	}
 
 	var e error
 	if que, e := cm.Channel.QueueDeclare(
-		cm.QueName,     // name
-		cm.Durable,     // durable
-		cm.DeleteUnuse, // delete when unused
-		false,          // exclusive
-		false,          // no-wait
+		cm.QueName,      // name
+		cm.Durable,      // durable
+		cm.DeleteUnused, // delete when unused
+		false,           // exclusive
+		false,           // no-wait
 	); e == nil {
 		if e = cm.Channel.QueueBind(que.Name, cm.RouteKey, cm.Exchange, false); e != nil {
 			return e
@@ -44,7 +42,10 @@ func (cm *AmqpConsumer) declareQueue() error {
 
 func (cm *AmqpConsumer) Consume() (<-chan amqp.Delivery, bool) {
 	if !cm.hasQue {
-		cm.declareQueue()
+		err := cm.declareQueue()
+		if err != nil {
+			return nil, false
+		}
 	}
 	c, e := cm.Channel.Consume(
 		cm.QueName,
@@ -55,12 +56,12 @@ func (cm *AmqpConsumer) Consume() (<-chan amqp.Delivery, bool) {
 		false,
 	)
 	if e != nil {
-		log.Printf("Consume %v error %v\n", cm.QueName, e)
+		Error.Printf("Consume %v error %v\n", cm.QueName, e)
 		return nil, false
 	}
 	return c, true
 }
 
-func (cm *AmqpConsumer) Close() {
-	cm.Channel.Close()
+func (cm *AmqpConsumer) Close() error {
+	return cm.Channel.Close()
 }

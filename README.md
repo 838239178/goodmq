@@ -18,12 +18,13 @@ Need your issue and pull request to make this project more stable and stronger
 
 ## Consumer Example
 
-1. Connection will try reconnect every 5 sec after close
+1. Connection will try to reconnect every 5 sec after close
 2. When connection reconnect success, notify all channel recovering
 
 ```go
 func ListenHeartbeat() {
 	mq := goodmq.NewAmqpConnection(config.AmqpAddress)
+	defer mq.Close()
 	consumer, err := mq.NewConsumer()
 	if err != nil {
 		panic(err)
@@ -36,14 +37,14 @@ func ListenHeartbeat() {
 	//retry consume by yourself
 	for range time.Tick(5 * time.Second) {
 		if ok {
-			log.Println("Hearbeat connect success")
+			log.Println("Heartbeat connect success")
 			for msg := range consumeChan {
-				m, e := string(msg.Body)
+				m := string(msg.Body)
 				log.Printf("Receive heartbeat from %v\n", m)
 			}
 			ok = false
 		} else {
-			log.Println("Hearbeat connection closed! Recovering...")
+			log.Println("Heartbeat connection closed! Recovering...")
 			consumeChan, ok = consumer.Consume()
 		}
 	}

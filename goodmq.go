@@ -2,11 +2,23 @@ package goodmq
 
 import (
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
+)
+
+var (
+	Info  = log.New(os.Stderr, "[GoodMQ] |INFO | ", log.LstdFlags)
+	Error = log.New(os.Stderr, "[GoodMQ] |ERROR| ", log.LstdFlags)
+	Warn  = log.New(os.Stderr, "[GoodMQ] |WARN | ", log.LstdFlags)
+	//Debug = log.New(os.Stderr, "[GoodMQ]|WARN|", log.LstdFlags|log.Lshortfile)
+)
+
+var (
+	RecoverDelay = 5 * time.Second
 )
 
 type AmqpConnection struct {
@@ -22,7 +34,7 @@ func NewAmqpConnection(addr string) *AmqpConnection {
 	var am AmqpConnection
 	conn, e := amqp.Dial(addr)
 	if e != nil {
-		log.Panicf("Dail %v failed, %v\n", addr, e)
+		Error.Panicf("Dail %v failed, %v\n", addr, e)
 	}
 	am.addr = addr
 	am.connLock = sync.RWMutex{}
@@ -40,15 +52,15 @@ func NewAmqpConnection(addr string) *AmqpConnection {
 
 func handleReconnect(c *AmqpConnection) {
 	for range c.notifyClose {
-		log.Printf("Reconnect to %v\n", c.addr)
-		for range time.Tick(5 * time.Second) {
+		Info.Printf("Reconnect to %v\n", c.addr)
+		for range time.Tick(RecoverDelay) {
 			if e := c.reconnect(); e == nil {
-				log.Println("Reconnect AMQP success")
+				Info.Println("Reconnect AMQP success")
 				//广播到所有channel
 				go c.broadcastRecover()
 				break
 			} else {
-				log.Printf("Reconnect to %v fail\n", c.addr)
+				Warn.Printf("Reconnect to %v fail\n", c.addr)
 			}
 		}
 	}
@@ -61,7 +73,7 @@ func handelRemoveChan(c *AmqpConnection) {
 }
 
 func (c *AmqpConnection) broadcastRecover() {
-	log.Println("Broadcasting recovering message..")
+	Info.Println("Broadcasting recovering message..")
 	c.notifyRecovers.Range(func(key, value any) bool {
 		if chans, ok := value.(chan *AmqpConnection); ok {
 			chans <- c
@@ -83,6 +95,8 @@ func (c *AmqpConnection) reconnect() error {
 		return e
 	}
 	c.conn = conn
+	//pre notifyClose chan will be close on amqp.shutdown
+	c.notifyClose = make(chan *amqp.Error)
 	c.conn.NotifyClose(c.notifyClose)
 	return nil
 }
@@ -168,20 +182,20 @@ func NewAmqpChannel(c *AmqpConnection) (*AmqpChannel, error) {
 
 func handleRecover(ch *AmqpChannel) {
 	for conn := range ch.notifyRecover {
-		for range time.Tick(5 * time.Second) {
-			log.Printf("Recovering %v channel...\n", ch.chanId)
+		for range time.Tick(RecoverDelay) {
+			Info.Printf("Recovering %v channel...\n", ch.chanId)
 			if e := ch.recover(conn); e == nil {
-				log.Printf("Recovering %v channel success\n", ch.chanId)
+				Info.Printf("Recovering %v channel success\n", ch.chanId)
 				break
 			} else {
-				log.Printf("Recover %v fail\n", ch.chanId)
+				Warn.Printf("Recover %v fail\n", ch.chanId)
 			}
 		}
 	}
 }
 
 func (ch *AmqpChannel) recover(conn *AmqpConnection) error {
-	if succ := ch.chLock.TryLock(); succ {
+	if ok := ch.chLock.TryLock(); ok {
 		defer ch.chLock.Unlock()
 		if res, e := conn.NewChannel(); e == nil {
 			ch.channel = res
