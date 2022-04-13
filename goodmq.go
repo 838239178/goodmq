@@ -37,9 +37,11 @@ func DailSync(addr string) <-chan *amqp.Connection {
 		defer close(ch)
 		conn, e := amqp.Dial(addr)
 		if e != nil {
-			Error.Panicf("Dail %v failed, %v\n", addr, e)
+			Error.Println("Dail %v failed, %v\n", addr, e)
+			ch <- nil
+		} else {
+			ch <- conn
 		}
-		ch <- conn
 	}()
 	return ch
 }
