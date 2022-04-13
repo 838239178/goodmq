@@ -1,6 +1,7 @@
 package goodmq
 
 import (
+	"errors"
 	"github.com/streadway/amqp"
 )
 
@@ -8,20 +9,19 @@ type AmqpConsumer struct {
 	Channel      *AmqpChannel
 	queue        amqp.Queue
 	hasQue       bool
-	ConsumerName string //ConsumerName 默认为空，会自动生成唯一标识符
-	RouteKey     string //RouteKey 默认为空
-	Exchange     string //Exchange 需要初始化 否则panic
 	QueName      string //QueName 默认为空，自动生成唯一队列并赋值
-	AutoAck      bool   //AutoAck 默认为true
-	Durable      bool   //Durable 默认为false
-	DeleteUnused bool   //DeleteUnused 默认false
+	ConsumerName string //ConsumerName 用于Consume，默认为空，会自动生成唯一标识符
+	AutoAck      bool   //AutoAck 用于Consume 默认为true
+	RouteKey     string //RouteKey 用于BindQueue，默认为空
+	Exchange     string //Exchange 用于BindQueue, 默认为空，绑定将返回异常
+	Durable      bool   //Durable 用于QueueDeclare，默认为false
+	DeleteUnused bool   //DeleteUnused（auto-delete） 用于QueueDeclare，默认false
 }
 
-func (cm *AmqpConsumer) declareQueue() error {
-	if cm.Exchange == "" {
-		Error.Panicln("Please set AmqpConsumer.Exchange!")
+func (cm *AmqpConsumer) DeclareQueue() error {
+	if cm.hasQue {
+		return nil
 	}
-
 	var e error
 	if que, e := cm.Channel.QueueDeclare(
 		cm.QueName,      // name
@@ -30,20 +30,35 @@ func (cm *AmqpConsumer) declareQueue() error {
 		false,           // exclusive
 		false,           // no-wait
 	); e == nil {
-		if e = cm.Channel.QueueBind(que.Name, cm.RouteKey, cm.Exchange, false); e != nil {
-			return e
+		if e = cm.Bind(); e != nil {
+			Info.Printf("%v, declared a unbinding queue\n", e)
 		}
 		cm.QueName = que.Name
 		cm.hasQue = true
-		return nil
 	}
 	return e
 }
 
+func (cm *AmqpConsumer) Bind() error {
+	if cm.Exchange == "" {
+		return errors.New("not set exchange")
+	}
+	if e := cm.Channel.QueueBind(cm.QueName, cm.RouteKey, cm.Exchange, false); e != nil {
+		return e
+	}
+	return nil
+}
+
+func (cm *AmqpConsumer) SetQueue(q amqp.Queue) {
+	cm.hasQue = true
+	cm.queue = q
+	cm.QueName = q.Name
+}
+
 func (cm *AmqpConsumer) Consume() (<-chan amqp.Delivery, bool) {
 	if !cm.hasQue {
-		Info.Printf("Not queue available, declaring %v...\n", cm.QueName)
-		err := cm.declareQueue()
+		Info.Printf("Not queue available, declaring %v\n", cm.QueName)
+		err := cm.DeclareQueue()
 		if err != nil {
 			return nil, false
 		}

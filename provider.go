@@ -11,7 +11,11 @@ type AmqpProvider struct {
 }
 
 func (p *AmqpProvider) Publish(msg amqp.Publishing) bool {
-	if e := p.Channel.Publish(p.Exchange, p.RouteKey, msg); e != nil {
+	return p.PublishDirect(p.Exchange, p.RouteKey, msg)
+}
+
+func (p *AmqpProvider) PublishDirect(exchange, routeKey string, msg amqp.Publishing) bool {
+	if e := p.Channel.Publish(exchange, routeKey, msg); e != nil {
 		Error.Printf("Publish to %v (key=%v) error, %v", p.Exchange, p.RouteKey, e.Error())
 		return false
 	}

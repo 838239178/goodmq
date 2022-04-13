@@ -266,6 +266,12 @@ func (ch *AmqpChannel) QueueDeclare(name string, durable, autoDelete, exclusive,
 	)
 }
 
+func (ch *AmqpChannel) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool) error {
+	ch.chLock.RLock()
+	defer ch.chLock.RUnlock()
+	return ch.channel.ExchangeDeclare(name, kind, durable, autoDelete, internal, noWait, nil)
+}
+
 func (ch *AmqpChannel) QueueBind(name, key, exchange string, noWait bool) error {
 	ch.chLock.RLock()
 	defer ch.chLock.RUnlock()
