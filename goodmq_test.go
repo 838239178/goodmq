@@ -9,7 +9,7 @@ import (
 
 func TestAutoRecover(t *testing.T) {
 	if addr, ok := os.LookupEnv("AMQP_ADDR"); ok {
-		RecoverDelay = 5 * time.Second
+		RecoverDelay = 2 * time.Second
 		connection := NewAmqpConnection(addr)
 		defer connection.Close()
 		consumer, err := connection.NewConsumer()
@@ -21,25 +21,25 @@ func TestAutoRecover(t *testing.T) {
 		consumer.Exchange = "apiServers"
 		consumeChan, ok := consumer.Consume()
 
-		//test dump after 2 sec
+		//test dump after 3 sec
 		go func() {
 			select {
-			case <-time.After(2 * time.Second):
+			case <-time.After(3 * time.Second):
 				connection.notifyClose <- amqp.ErrClosed
+				connection.conn.Close()
+				return
 			}
 		}()
 
-		//test dump after 5 sec
-		go func() {
-			select {
-			case <-time.After(5 * time.Second):
-				connection.notifyClose <- amqp.ErrCommandInvalid
-			}
-		}()
-
+		cnt := 0
 		for range time.Tick(2 * time.Second) {
 			if ok {
 				Info.Println("Heartbeat connect success")
+				//stop testing when recovered
+				cnt++
+				if cnt == 2 {
+					break
+				}
 				for range consumeChan {
 					Info.Printf("Message")
 				}
@@ -52,5 +52,4 @@ func TestAutoRecover(t *testing.T) {
 	} else {
 		t.Error("OS env AMQP_ADDR required")
 	}
-
 }

@@ -37,7 +37,7 @@ func DailSync(addr string) <-chan *amqp.Connection {
 		defer close(ch)
 		conn, e := amqp.Dial(addr)
 		if e != nil {
-			Error.Println("Dail %v failed, %v\n", addr, e)
+			Error.Printf("Dail %v failed, %v\n", addr, e)
 			ch <- nil
 		} else {
 			ch <- conn
@@ -105,16 +105,14 @@ func handelRemoveChan(c *AmqpConnection) {
 }
 
 func (c *AmqpConnection) broadcastRecover() {
-	//Debug.Println("Broadcasting recovering message..")
+	Info.Println("Broadcasting recovering message..")
 	//var cnt int
 	c.notifyRecovers.Range(func(key, value any) bool {
 		//cnt++
-		//Debug.Printf("Notify recovering to chan %v\n", key)
-		go func(val interface{}) {
-			if recoverChan, ok := val.(chan *AmqpConnection); ok {
-				recoverChan <- c
-			}
-		}(value)
+		if recoverChan, ok := value.(chan *AmqpConnection); ok {
+			//Debug.Printf("Notify recovering to chan %v\n", key)
+			recoverChan <- c
+		}
 		return true
 	})
 	//Debug.Printf("Finished broadcasting recovering, total %v\n", cnt)
@@ -141,7 +139,7 @@ func (c *AmqpConnection) reconnect() error {
 
 func (c *AmqpConnection) RemoveChan(chanId uuid.UUID) {
 	if value, ok := c.notifyRecovers.LoadAndDelete(chanId); ok {
-		//Debug.Printf("Remove chan %v \n", chanId)
+		Info.Printf("Remove channel %v \n", chanId)
 		if recoverChan, ok2 := value.(chan *AmqpConnection); ok2 {
 			close(recoverChan)
 			//Debug.Printf("Close chan %v \n", chanId)
@@ -179,7 +177,6 @@ func (c *AmqpConnection) NewProvider() (*AmqpProvider, error) {
 }
 
 func (c *AmqpConnection) Close() error {
-	close(c.notifyClose)
 	close(c.notifyRemove)
 	//close all recover chan
 	c.notifyRecovers.Range(func(key, value any) bool {
@@ -190,6 +187,8 @@ func (c *AmqpConnection) Close() error {
 	})
 	//help GC olden data
 	c.notifyRecovers = nil
+	Info.Printf("AMPQ normally closed...")
+	//chan notifyClose will close in c.conn.Close()
 	return c.conn.Close()
 }
 
@@ -207,14 +206,15 @@ func NewAmqpChannel(c *AmqpConnection) (*AmqpChannel, error) {
 		return nil, e
 	}
 	var ch AmqpChannel
-	ch.channel = channel
-	ch.notifyRecover = make(chan *AmqpConnection)
-	ch.notifyRemove = c.notifyRemove
 	ch.chanId, e = uuid.NewRandom()
 	if e != nil {
 		return nil, e
 	}
-	c.notifyRecovers.Store(ch.chanId, ch.notifyRecover)
+	notifyRecoverChan := make(chan *AmqpConnection)
+	c.notifyRecovers.Store(ch.chanId, notifyRecoverChan)
+	ch.channel = channel
+	ch.notifyRecover = notifyRecoverChan
+	ch.notifyRemove = c.notifyRemove
 	go handleRecover(&ch)
 	return &ch, nil
 }
@@ -280,7 +280,7 @@ func (ch *AmqpChannel) Consume(queue, consumer string, autoAck, exclusive, noLoc
 
 func (ch *AmqpChannel) Close() error {
 	ch.chLock.Lock()
-	defer ch.chLock.Lock()
+	defer ch.chLock.Unlock()
 	ch.notifyRemove <- ch.chanId
 	return ch.channel.Close()
 }
