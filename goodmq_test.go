@@ -29,10 +29,10 @@ func TestAutoRecover(t *testing.T) {
 			}
 		}()
 
-		//test dump after 10 sec
+		//test dump after 5 sec
 		go func() {
 			select {
-			case <-time.After(10 * time.Second):
+			case <-time.After(5 * time.Second):
 				connection.notifyClose <- amqp.ErrCommandInvalid
 			}
 		}()

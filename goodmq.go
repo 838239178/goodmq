@@ -31,7 +31,7 @@ type AmqpConnection struct {
 	connLock       sync.RWMutex
 }
 
-func DailSync(addr string) chan *amqp.Connection {
+func DailSync(addr string) <-chan *amqp.Connection {
 	ch := make(chan *amqp.Connection)
 	go func() {
 		defer close(ch)
