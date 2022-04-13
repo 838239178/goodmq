@@ -4,7 +4,7 @@
 
 A good `streadway/amqp` wrapper. Supporting connection reconnecting and channel recovering.
 
-Thread Safe：Recommend one thread one channel. One connection manage lots of channel.
+Thread Safe：Recommend one thread one channel. One connection manage lots of channels.
 
 ### Feature
 
