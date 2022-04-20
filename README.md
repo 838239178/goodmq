@@ -12,7 +12,7 @@ Need your issue and pull request to make this project more stable and stronger
 
 - [x] Auto recovering
 - [ ]  More flexible configuration
-- [ ]  Auto restart consume
+- [x]  Auto restart consume
 - [ ]  Connection/Channel Pool
 - [ ]  TODO
 
