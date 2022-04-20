@@ -83,6 +83,7 @@ func (cm *AmqpConsumer) ConsumeAuto(fn func(delivery amqp.Delivery), interval ti
 	consumeChan, ok := cm.Consume()
 	//immediately start first consume if ok
 	if ok {
+		Info.Printf("Start consume exchange=%v queue=%v", cm.Exchange, cm.QueName)
 		for d := range consumeChan {
 			fn(d)
 		}
@@ -91,14 +92,34 @@ func (cm *AmqpConsumer) ConsumeAuto(fn func(delivery amqp.Delivery), interval ti
 	//start to auto recovery when channel closed first time
 	for range time.Tick(interval) {
 		if ok {
+			Info.Printf("Start consume exchange=%v queue=%v\n", cm.Exchange, cm.QueName)
 			for d := range consumeChan {
 				fn(d)
 			}
 			ok = false
 		} else {
+			Warn.Printf("Disconnected! Recovering consume exchange=%v queue=%v...\n", cm.Exchange, cm.QueName)
 			consumeChan, ok = cm.Consume()
 		}
 	}
+}
+
+//AckOne multiply=false
+func (cm *AmqpConsumer) AckOne(tag uint64) bool {
+	if e := cm.Channel.Ack(tag, false); e != nil {
+		Error.Printf("Error in ack tag=%v, %v\n", tag, e)
+		return false
+	}
+	return true
+}
+
+//NackSafe multiply=false, requeue=true
+func (cm *AmqpConsumer) NackSafe(tag uint64) bool {
+	if e := cm.Channel.Nack(tag, false, true); e != nil {
+		Error.Printf("Error in nack tag=%v, %v\n", tag, e)
+		return false
+	}
+	return true
 }
 
 func (cm *AmqpConsumer) Close() error {
