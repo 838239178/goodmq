@@ -3,6 +3,7 @@ package goodmq
 import (
 	"errors"
 	"github.com/streadway/amqp"
+	"time"
 )
 
 type AmqpConsumer struct {
@@ -12,7 +13,7 @@ type AmqpConsumer struct {
 	QueName      string //QueName 默认为空，自动生成唯一队列并赋值
 	ConsumerName string //ConsumerName 用于Consume，默认为空，会自动生成唯一标识符
 	AutoAck      bool   //AutoAck 用于Consume 默认为true
-	RouteKey     string //RouteKey 用于BindQueue，默认为空
+	RouteKey     string //RouteKey 用于BindQueue，默认为空，自动生成为队列名称
 	Exchange     string //Exchange 用于BindQueue, 默认为空，绑定将返回异常
 	Durable      bool   //Durable 用于QueueDeclare，默认为false
 	DeleteUnused bool   //DeleteUnused（auto-delete） 用于QueueDeclare，默认false
@@ -76,6 +77,28 @@ func (cm *AmqpConsumer) Consume() (<-chan amqp.Delivery, bool) {
 		return nil, false
 	}
 	return c, true
+}
+
+func (cm *AmqpConsumer) ConsumeAuto(fn func(delivery amqp.Delivery), interval time.Duration) {
+	consumeChan, ok := cm.Consume()
+	//immediately start first consume if ok
+	if ok {
+		for d := range consumeChan {
+			fn(d)
+		}
+		ok = false
+	}
+	//start to auto recovery when channel closed first time
+	for range time.Tick(interval) {
+		if ok {
+			for d := range consumeChan {
+				fn(d)
+			}
+			ok = false
+		} else {
+			consumeChan, ok = cm.Consume()
+		}
+	}
 }
 
 func (cm *AmqpConsumer) Close() error {

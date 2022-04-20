@@ -192,6 +192,9 @@ func (c *AmqpConnection) Close() error {
 	return c.conn.Close()
 }
 
+// AmqpChannel
+// TODO channel may be closed by others errors (exchange is not exist, queue is not exist...)
+//      currently only recovering channel when connection recovered.
 type AmqpChannel struct {
 	channel       *amqp.Channel
 	chanId        uuid.UUID
@@ -282,6 +285,18 @@ func (ch *AmqpChannel) Consume(queue, consumer string, autoAck, exclusive, noLoc
 	ch.chLock.RLock()
 	defer ch.chLock.RUnlock()
 	return ch.channel.Consume(queue, consumer, autoAck, exclusive, noLocal, noWait, nil)
+}
+
+func (ch *AmqpChannel) Ack(tag uint64, multiply bool) error {
+	ch.chLock.RLock()
+	defer ch.chLock.RUnlock()
+	return ch.channel.Ack(tag, multiply)
+}
+
+func (ch *AmqpChannel) Nack(tag uint64, multiply, requeue bool) error {
+	ch.chLock.RLock()
+	defer ch.chLock.RUnlock()
+	return ch.channel.Nack(tag, multiply, requeue)
 }
 
 func (ch *AmqpChannel) Close() error {
