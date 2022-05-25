@@ -1,8 +1,16 @@
 package goodmq
 
 import (
+	"io"
+
 	"github.com/streadway/amqp"
 )
+
+type IAmqpProvider interface {
+	io.Closer
+	PublishDirect(exchange, routeKey string, msg amqp.Publishing) bool
+	Send(exchange string, msg amqp.Publishing) bool
+}
 
 type AmqpProvider struct {
 	Channel  *AmqpChannel
@@ -20,6 +28,10 @@ func (p *AmqpProvider) PublishDirect(exchange, routeKey string, msg amqp.Publish
 		return false
 	}
 	return true
+}
+
+func (p *AmqpProvider) Send(exchg string, msg amqp.Publishing) bool {
+	return p.PublishDirect(exchg, "", msg)
 }
 
 func (p *AmqpProvider) Close() error {
