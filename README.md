@@ -10,7 +10,9 @@ Thread Safe：Recommend one thread one channel. One connection manage lots of ch
 
 Need your issue and pull request to make this project more stable and stronger
 
-- [x] Auto recovering
+- [x]  Auto recovering
+- [x]  Publish message
+- [x]  Ack/Nack
 - [ ]  More flexible configuration
 - [x]  Auto restart consume
 - [ ]  Connection/Channel Pool
