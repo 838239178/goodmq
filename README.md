@@ -48,6 +48,10 @@ func ListenHeartbeat() {
 			consumeChan, ok = consumer.Consume()
 		}
 	}
+	//or auto consume
+	consumer.ConsumeAuto(func(delivery amqp.Delivery) {
+		//do yours
+	}, 5 * time.Second)
 }
 ```
 
