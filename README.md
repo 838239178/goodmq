@@ -1,4 +1,4 @@
-# GoodMQ
+# GoodMQ [Not more maintaning. amqp091-go is better](https://github.com/rabbitmq/amqp091-go)
 
 [![GoDoc](https://godoc.org/github.com/838239178/goodmq?status.svg)](http://godoc.org/github.com/838239178/goodmq)
 
